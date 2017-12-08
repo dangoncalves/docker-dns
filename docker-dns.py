@@ -23,9 +23,8 @@ class DockerResolver(client.Resolver):
         self.runningContainers = {}
         for c in dockerClient.containers.list():
             containerName = c.attrs["Name"][1:]
-            containerBridge = c.attrs["NetworkSettings"]["Networks"]["bridge"]
-            containerIPv4 = containerBridge["IPAddress"]
-            self.addContainer(containerName, containerIPv4)
+            networks = c.attrs["NetworkSettings"]["Networks"] 
+            [ self.addContainer(containerName, network["IPAddress"]) for network in networks.values() ]
 
     def addContainer(self, containerName, containerIPv4):
         self.runningContainers[containerName] = containerIPv4
