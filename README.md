@@ -15,7 +15,7 @@ Then change directory and install dependencies
 
 ```
 cd docker-dns
-pip3 install requirements.txt
+pip3 install -r requirements.txt
 ```
 
 Execute the script as root (to bind on port 53)
@@ -48,9 +48,9 @@ This project is under WTFPL
 
 The project's goal is just to resolve docker containers' name into IP address.
 This first version do the job, but there are still some things to do like:
- * add tests
- * add AAAA queries support
- * add PTR queries support
- * automate installation
- * improve documentation
- * add Windows and Mac OS support (tested only on Linux for now)
+ * add tests;
+ * add AAAA queries support;
+ * add PTR queries support;
+ * automate installation;
+ * improve documentation;
+ * add Windows and Mac OS support (tested only on Linux for now).
