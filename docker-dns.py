@@ -6,13 +6,11 @@ Resolve docker container's name into IPv4 address
 """
 
 import os
-import sys
-import signal
 import docker
 import argparse
 from threading import Thread
 from twisted.internet import reactor, defer
-from twisted.names import client, dns, server, error
+from twisted.names import client, dns, server
 
 
 class DockerResolver(client.Resolver):
