@@ -113,17 +113,12 @@ if __name__ == "__main__":
     description = "Resolve docker container's name into IPv4 address"
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--port",
-                        action="store",
-                        dest="port",
                         type=int,
                         default=53)
     parser.add_argument("--listen-address",
-                        action="store",
                         dest="listenAddress",
                         default="127.0.0.1")
     parser.add_argument("--forwarders",
-                        action="store",
-                        dest="forwarders",
                         default=None)
     options = parser.parse_args()
     forwarders = getForwarders(forwarders=options.forwarders,
