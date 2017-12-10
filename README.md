@@ -48,9 +48,12 @@ This project is under WTFPL
 
 The project's goal is just to resolve docker containers' name into IP address.
 This first version do the job, but there are still some things to do like:
- * add tests;
- * add AAAA queries support;
- * add PTR queries support;
- * automate installation;
- * improve documentation;
- * add Windows and Mac OS support (tested only on Linux for now).
+ * add tests
+ * add networks support
+ * add AAAA queries support
+ * add PTR queries support
+ * add SRV queries support
+ * add HEALTH CHECK support (do not resolve a container that is not healthy)
+ * automate installation
+ * improve documentation
+ * add Windows and Mac OS support (tested only on Linux for now)
