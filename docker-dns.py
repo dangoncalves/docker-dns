@@ -83,7 +83,7 @@ def getForwarders(forwarders=None, listenAddress="127.0.0.1"):
                 continue
             if line.startswith("nameserver"):
                 forwarders.append((line[11:-1], 53))
-        if count(forwarders) == 0:
+        if len(forwarders) == 0:
             forwarders = None
     else:
         forwarders = forwarders.split(",")
