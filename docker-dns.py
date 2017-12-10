@@ -15,7 +15,7 @@ from twisted.names import client, dns, server
 
 class DockerResolver(client.Resolver):
     """Resolve container name into IP address."""
-    def __init__(self, dockerClient, servers=[]):
+    def __init__(self, dockerClient, servers=None):
         super().__init__(resolv=None, servers=servers)
         self.dockerClient = dockerClient
         self.runningContainers = {}
@@ -70,12 +70,12 @@ class EventsListener(Thread):
         self.resolver.removeContainer(containerName)
 
 
-def getForwarders(forwarders="", listenAddress="127.0.0.1"):
+def getForwarders(forwarders=None, listenAddress="127.0.0.1"):
     """
     Reads forwarders from arguments or from resolv.conf and create a list of
     tuples containing the forwarders' IP and the port.
     """
-    if not forwarders:
+    if forwarders is None:
         forwarders = []
         resolvconf = open("/etc/resolv.conf", "r")
         for line in resolvconf:
@@ -83,13 +83,15 @@ def getForwarders(forwarders="", listenAddress="127.0.0.1"):
                 continue
             if line.startswith("nameserver"):
                 forwarders.append((line[11:-1], 53))
+        if count(forwarders) == 0:
+            forwarders = None
     else:
         forwarders = forwarders.split(",")
         forwarders = [(address, 53) for address in forwarders]
     return forwarders
 
 
-def dockerDns(port=53, listenAddress="127.0.0.1", forwarders=[]):
+def dockerDns(port=53, listenAddress="127.0.0.1", forwarders=None):
     """Configure and execute the DNS server."""
     dockerClient = docker.from_env()
     resolver = DockerResolver(dockerClient=dockerClient,
@@ -122,7 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--forwarders",
                         action="store",
                         dest="forwarders",
-                        default="")
+                        default=None)
     options = parser.parse_args()
     forwarders = getForwarders(forwarders=options.forwarders,
                                listenAddress=options.listenAddress)
