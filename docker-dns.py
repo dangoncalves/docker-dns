@@ -77,14 +77,14 @@ def getForwarders(forwarders=None, listenAddress="127.0.0.1"):
     """
     if forwarders is None:
         forwarders = []
-        resolvconf = open("/etc/resolv.conf", "r")
-        for line in resolvconf:
-            if line.startswith("nameserver") and line[11:-1] == listenAddress:
-                continue
-            if line.startswith("nameserver"):
-                forwarders.append((line[11:-1], 53))
-        if len(forwarders) == 0:
-            forwarders = None
+        with open("/etc/resolv.conf", "r") as resolvconf:
+            for line in resolvconf:
+                if line.startswith("nameserver") and line[11:-1] == listenAddress:
+                    continue
+                if line.startswith("nameserver"):
+                    forwarders.append((line[11:-1], 53))
+            if len(forwarders) == 0:
+                forwarders = None
     else:
         forwarders = forwarders.split(",")
         forwarders = [(address, 53) for address in forwarders]
