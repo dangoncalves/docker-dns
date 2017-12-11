@@ -13,6 +13,10 @@ from twisted.internet import reactor, defer
 from twisted.names import client, dns, server
 
 
+LISTEN_ADDRESS = "127.0.0.1"
+DNS_PORT = 53
+
+
 class DockerResolver(client.Resolver):
     """Resolve container name into IP address."""
     def __init__(self, dockerClient, servers=None):
@@ -70,7 +74,7 @@ class EventsListener(Thread):
         self.resolver.removeContainer(containerName)
 
 
-def getForwarders(forwarders=None, listenAddress="127.0.0.1"):
+def getForwarders(forwarders=None, listenAddress=LISTEN_ADDRESS):
     """
     Reads forwarders from arguments or from resolv.conf and create a list of
     tuples containing the forwarders' IP and the port.
@@ -83,16 +87,16 @@ def getForwarders(forwarders=None, listenAddress="127.0.0.1"):
                     if line[11:-1] == listenAddress:
                         continue
                     else:
-                        forwarders.append((line[11:-1], 53))
+                        forwarders.append((line[11:-1], DNS_PORT))
             if len(forwarders) == 0:
                 forwarders = None
     else:
         forwarders = forwarders.split(",")
-        forwarders = [(address, 53) for address in forwarders]
+        forwarders = [(address, DNS_PORT) for address in forwarders]
     return forwarders
 
 
-def dockerDns(port=53, listenAddress="127.0.0.1", forwarders=None):
+def dockerDns(port=DNS_PORT, listenAddress=LISTEN_ADDRESS, forwarders=None):
     """Configure and execute the DNS server."""
     dockerClient = docker.from_env()
     resolver = DockerResolver(dockerClient=dockerClient,
@@ -115,10 +119,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--port",
                         type=int,
-                        default=53)
+                        default=DNS_PORT)
     parser.add_argument("--listen-address",
                         dest="listenAddress",
-                        default="127.0.0.1")
+                        default=LISTEN_ADDRESS)
     parser.add_argument("--forwarders",
                         default=None)
     options = parser.parse_args()
