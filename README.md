@@ -48,6 +48,7 @@ This project is under WTFPL
 
 The project's goal is just to resolve docker containers' name into IP address.
 This first version do the job, but there are still some things to do like:
+ * add a Dockerfile to start the server
  * add tests
  * add networks support
  * add AAAA queries support
