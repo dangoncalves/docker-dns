@@ -32,7 +32,6 @@ def getForwarders(forwarders=None, listenAddress=LISTEN_ADDRESS):
     return forwarders
 
 
-
 if __name__ == "__main__":
     description = "Resolve docker container's name into IPv4 address"
     parser = argparse.ArgumentParser(description=description)
@@ -48,5 +47,5 @@ if __name__ == "__main__":
     forwarders = getForwarders(forwarders=options.forwarders,
                                listenAddress=options.listenAddress)
     run(port=options.port,
-              listenAddress=options.listenAddress,
-              forwarders=forwarders)
+        listenAddress=options.listenAddress,
+        forwarders=forwarders)
