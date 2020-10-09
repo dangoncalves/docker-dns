@@ -15,7 +15,7 @@ Then change directory and install dependencies
 
 ```
 cd docker-dns
-pip3 install -r requirements.txt
+poetry install
 ```
 
 Execute the script as root (to bind on port 53)
