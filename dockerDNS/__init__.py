@@ -1,9 +1,9 @@
-from .dockerDNS import DNS_PORT, LISTEN_ADDRESS, run
+from .dockerDNS import DNS_PORT, LISTEN_ADDRESS, DockerDNS
 
 __all__ = [
     "DNS_PORT",
     "LISTEN_ADDRESS",
-    "run"
+    "DockerDNS"
 ]
 
-__version__ = 0.2
+__version__ = 0.3

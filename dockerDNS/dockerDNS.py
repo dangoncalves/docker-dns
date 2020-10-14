@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
-"""
-Resolve docker container's name into IPv4 address
+"""Resolve docker container's name into IPv4 address"""
 
-  python3 docker-dns.py
-"""
-
-import os
 import docker
 from threading import Thread
 from twisted.internet import reactor, defer
 from twisted.names import client, dns, server
-
 
 LISTEN_ADDRESS = "127.0.0.1"
 DNS_PORT = 53
@@ -52,14 +46,19 @@ class EventsListener(Thread):
     def __init__(self, resolver):
         super().__init__()
         self.resolver = resolver
+        self.eventListener = None
 
     def run(self):
-        eventListener = self.resolver.dockerClient.events(
+        self.eventListener = self.resolver.dockerClient.events(
                             filters={"event": ["start", "die"]},
                             decode=True)
-        for e in eventListener:
+        for e in self.eventListener:
             callback = getattr(self, e["Action"] + "Callback")
             callback(e)
+
+    def join(self, timeout=None):
+        self.eventListener.close()
+        super().join(timeout)
 
     def startCallback(self, event):
         containerName = event["Actor"]["Attributes"]["name"]
@@ -73,19 +72,49 @@ class EventsListener(Thread):
         self.resolver.removeContainer(containerName)
 
 
-def run(port=DNS_PORT, listenAddress=LISTEN_ADDRESS, forwarders=None):
-    """Configure and execute the DNS server."""
-    dockerClient = docker.from_env()
-    resolver = DockerResolver(dockerClient=dockerClient,
-                              servers=forwarders)
-    eventsListener = EventsListener(resolver)
-    eventsListener.start()
-    factory = server.DNSServerFactory(clients=[resolver])
-    protocol = dns.DNSDatagramProtocol(controller=factory)
-    reactor.listenUDP(port=port, protocol=protocol, interface=listenAddress)
-    reactor.listenTCP(port=port, factory=factory, interface=listenAddress)
-    reactor.run()
-    eventsListener.join(1)
-    # For an unknown reason sys.exit() does not work
-    # so we use this hack.
-    os._exit(0)
+class DockerDNS():
+    """Start and stop DockerDNS Service"""
+    def __init__(self, port=None, listenAddress=None, forwarders=None):
+        self.port = port
+        self.listenAddress = listenAddress
+        self.forwarders = forwarders
+
+        self.eventsListener = None
+
+        self.udp_listener = None
+        self.tcp_listener = None
+
+        if self.port is None:
+            self.port = DNS_PORT
+        if self.listenAddress is None:
+            self.listenAddress = LISTEN_ADDRESS
+
+    def start(self):
+        """Configure and execute the DNS server."""
+        dockerClient = docker.from_env()
+        resolver = DockerResolver(dockerClient=dockerClient,
+                                  servers=self.forwarders)
+
+        self.eventsListener = EventsListener(resolver)
+        self.eventsListener.start()
+        factory = server.DNSServerFactory(clients=[resolver])
+        protocol = dns.DNSDatagramProtocol(controller=factory)
+        self.udp_listener = reactor.listenUDP(port=self.port,
+                                              protocol=protocol,
+                                              interface=self.listenAddress)
+        self.tcp_listener = reactor.listenTCP(port=self.port,
+                                              factory=factory,
+                                              interface=self.listenAddress)
+        reactor.run()
+
+    def clean(self):
+        """Clean all the resources"""
+        self.stop()
+        self.eventsListener.join()
+
+    def stop(self):
+        """Stop the reactor if running"""
+        if reactor.running:
+            self.udp_listener.stopListening()
+            self.tcp_listener.stopListening()
+            reactor.stop()

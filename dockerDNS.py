@@ -7,7 +7,9 @@ Resolve docker container's name into IPv4 address
 
 
 import argparse
-from dockerDNS import DNS_PORT, LISTEN_ADDRESS, run
+import signal
+import sys
+from dockerDNS import DNS_PORT, LISTEN_ADDRESS, DockerDNS
 
 
 def getForwarders(forwarders=None, listenAddress=LISTEN_ADDRESS):
@@ -32,6 +34,30 @@ def getForwarders(forwarders=None, listenAddress=LISTEN_ADDRESS):
     return forwarders
 
 
+class DNSHandler():
+    """Handle DockerDNS start and stop"""
+    def __init__(self, port=DNS_PORT,
+                 listenAddress=LISTEN_ADDRESS,
+                 forwarders=None):
+        self.runner = DockerDNS(port=port,
+                                listenAddress=listenAddress,
+                                forwarders=forwarders)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGINT, self.signal_handler)
+
+    def signal_handler(self, signum, frame):
+        """Signal handler that can stop the runner"""
+        self.runner.stop()
+
+    def start(self):
+        """Runner starter"""
+        self.runner.start()
+
+    def clean(self):
+        """Runner cleaner"""
+        self.runner.clean()
+
+
 if __name__ == "__main__":
     description = "Resolve docker container's name into IPv4 address"
     parser = argparse.ArgumentParser(description=description)
@@ -46,6 +72,11 @@ if __name__ == "__main__":
     options = parser.parse_args()
     forwarders = getForwarders(forwarders=options.forwarders,
                                listenAddress=options.listenAddress)
-    run(port=options.port,
-        listenAddress=options.listenAddress,
-        forwarders=forwarders)
+
+    DNSHandler = DNSHandler(port=options.port,
+                            listenAddress=options.listenAddress,
+                            forwarders=forwarders)
+    DNSHandler.start()
+    DNSHandler.clean()
+
+    sys.exit()
