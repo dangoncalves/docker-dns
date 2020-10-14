@@ -40,6 +40,13 @@ There are three options you can use to customize execution:
    (default 127.0.0.1)
  * `--forwarders` dns forwarders' list (coma separated list)
 
+## Tests
+
+```
+poetry shell
+make test
+```
+
 ## License
 
 This project is under WTFPL
