@@ -3,8 +3,11 @@
 import unittest
 import docker
 import time
+import os
+import signal
+from multiprocessing import Process
+from dockerDNS import DockerDNS
 from dnslib.dns import DNSRecord
-# from dockerDNS import run
 
 
 def resolveDNS(query, server, port):
@@ -19,23 +22,22 @@ def resolveDNS(query, server, port):
 
 class TestDockerDNS(unittest.TestCase):
 
+    def dockerDNSProcess(self):
+        p = DockerDNS(port=35353,
+                      listenAddress="127.0.0.1",
+                      forwarders="8.8.8.8")
+        p.start()
+        p.clean()
+
     def setUp(self):
         self.dockerClient = docker.from_env()
 
-        # FIXME: Tests should be autonomous.
-        #
-        # Server cannot be started at this time
-        # because we have to stop it gracefully
-        # and the run function does not support
-        # that actually.
-        #
-        # By the way, this mean that we have to
-        # start the server manually before starting
-        # tests.
-        # Keep in mind that we have to use the
-        # port 35353 in order to start the server
-        # as a regular user.
-        # run(35353, "127.0.0.1", "8.8.8.8")
+        self.process = Process(target=self.dockerDNSProcess)
+        self.process.start()
+
+    def tearDown(self):
+        os.kill(self.process.pid, signal.SIGTERM)
+        self.process.join()
 
     def test_basic_dns_request(self):
         self.dockerClient.containers.run(
