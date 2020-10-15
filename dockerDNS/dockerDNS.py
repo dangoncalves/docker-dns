@@ -18,12 +18,15 @@ class DockerResolver(client.Resolver):
         self.runningContainers = {}
         for c in dockerClient.containers.list():
             containerName = c.attrs["Name"][1:]
-            containerBridge = c.attrs["NetworkSettings"]["Networks"]["bridge"]
-            containerIPv4 = containerBridge["IPAddress"]
-            self.addContainer(containerName, containerIPv4)
+            containerNetworks = c.attrs["NetworkSettings"]["Networks"]
+            for k, v in containerNetworks.items():
+                containerIPv4 = v["IPAddress"]
+                self.addContainer(containerName, containerIPv4)
 
     def addContainer(self, containerName, containerIPv4):
-        self.runningContainers[containerName] = containerIPv4
+        if containerName not in self.runningContainers:
+            self.runningContainers[containerName] = []
+        self.runningContainers[containerName].append(containerIPv4)
 
     def removeContainer(self, containerName):
         self.runningContainers.pop(containerName, None)
@@ -31,9 +34,11 @@ class DockerResolver(client.Resolver):
     def lookupAddress(self, query, timeout=None):
         domain = query.decode()
         if domain in self.runningContainers:
-            p = dns.Record_A(address=self.runningContainers[domain].encode())
-            answer = dns.RRHeader(name=query, payload=p)
-            answers = [answer]
+            answers = []
+            for address in self.runningContainers[domain]:
+                p = dns.Record_A(address=address.encode())
+                answer = dns.RRHeader(name=query, payload=p)
+                answers.append(answer)
             authority = []
             additional = []
             return defer.succeed((answers, authority, additional))
@@ -50,7 +55,7 @@ class EventsListener(Thread):
 
     def run(self):
         self.eventListener = self.resolver.dockerClient.events(
-                            filters={"event": ["start", "die"]},
+                            filters={"event": ["connect", "disconnect"]},
                             decode=True)
         for e in self.eventListener:
             callback = getattr(self, e["Action"] + "Callback")
@@ -60,16 +65,37 @@ class EventsListener(Thread):
         self.eventListener.close()
         super().join(timeout)
 
-    def startCallback(self, event):
-        containerName = event["Actor"]["Attributes"]["name"]
+    def connectCallback(self, event):
+        containerID = event["Actor"]["Attributes"]["container"]
         api = self.resolver.dockerClient.api
-        container = api.inspect_container(containerName)
-        containerIPv4 = container["NetworkSettings"]["IPAddress"]
-        self.resolver.addContainer(containerName, containerIPv4)
+        container = api.inspect_container(containerID)
+        containerName = container["Name"].lstrip('/')
+        containerNetworks = container["NetworkSettings"]["Networks"]
 
-    def dieCallback(self, event):
-        containerName = event["Actor"]["Attributes"]["name"]
-        self.resolver.removeContainer(containerName)
+        for k, v in containerNetworks.items():
+            containerIPv4 = v["IPAddress"]
+            shouldAddContainer = True
+            # ContainerNetworks contains all the networks. So if we connect a
+            # second (or third) network after container started, we fire
+            # connect event several times. This means we should ensure that
+            # containerName appears once in resolver.runningContainers list.
+            if containerName in self.resolver.runningContainers:
+                thisContainer = self.resolver.runningContainers[containerName]
+                if containerIPv4 in thisContainer:
+                    shouldAddContainer = False
+
+            if shouldAddContainer:
+                self.resolver.addContainer(containerName, containerIPv4)
+
+    def disconnectCallback(self, event):
+        containerID = event["Actor"]["Attributes"]["container"]
+        api = self.resolver.dockerClient.api
+        try:
+            container = api.inspect_container(containerID)
+            containerName = container["Name"].lstrip('/')
+            self.resolver.removeContainer(containerName)
+        except docker.errors.NotFound:
+            pass
 
 
 class DockerDNS():
