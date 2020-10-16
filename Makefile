@@ -1,2 +1,2 @@
 test:
-	@python -m twisted.trial tests
+	@python -m tests
