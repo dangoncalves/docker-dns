@@ -1,4 +1,4 @@
-from .test_dockerDNS import TestDockerDNSIPv4
+from .test_dockerDNS import TestDockerDNSIPv4, TestDockerDNSIPv6
 
 from twisted.trial import runner, reporter
 import unittest
@@ -8,6 +8,8 @@ def suite():
     suite = unittest.TestSuite()
     suite.addTest(TestDockerDNSIPv4('test_basic_dns_request'))
     suite.addTest(TestDockerDNSIPv4('test_docker_network'))
+    suite.addTest(TestDockerDNSIPv6('test_basic_dns_request'))
+    suite.addTest(TestDockerDNSIPv6('test_docker_network'))
     return suite
 
 
