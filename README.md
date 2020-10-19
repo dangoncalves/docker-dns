@@ -55,13 +55,13 @@ This project is under WTFPL
 
 The project's goal is just to resolve docker containers' name into IP address.
 This first version do the job, but there are still some things to do like:
- * add a Dockerfile to start the server
- * add tests
- * add networks support
- * add AAAA queries support
- * add PTR queries support
- * add SRV queries support
- * add HEALTH CHECK support (do not resolve a container that is not healthy)
- * automate installation
- * improve documentation
- * add Windows and Mac OS support (tested only on Linux for now)
+ [ ] ~~add a Dockerfile to start the server~~ Not relevant
+ [x] add tests
+ [x] add networks support
+ [x] add AAAA queries support
+ [ ] add PTR queries support
+ [ ] ~~add SRV queries support~~ Not relevant
+ [ ] add HEALTH CHECK support (do not resolve a container that is not healthy)
+ [ ] automate installation
+ [ ] improve documentation
+ [ ] add Windows and Mac OS support (tested only on Linux for now)
