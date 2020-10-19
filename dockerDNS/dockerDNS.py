@@ -2,6 +2,7 @@
 """Resolve docker container's name into IPv4 address"""
 
 import docker
+from ipaddress import ip_address, IPv4Address, IPv6Address
 from threading import Thread
 from twisted.internet import reactor, defer
 from twisted.names import client, dns, server
@@ -21,29 +22,59 @@ class DockerResolver(client.Resolver):
             containerNetworks = c.attrs["NetworkSettings"]["Networks"]
             for k, v in containerNetworks.items():
                 containerIPv4 = v["IPAddress"]
-                self.addContainer(containerName, containerIPv4)
+                containerIPv6 = v["GlobalIPv6Address"]
+                if not containerIPv6:
+                    containerIPv6 = None
 
-    def addContainer(self, containerName, containerIPv4):
+                self.addContainer(containerName, containerIPv4, containerIPv6)
+
+    def addContainer(self, containerName, containerIPv4, containerIPv6=None):
         if containerName not in self.runningContainers:
             self.runningContainers[containerName] = []
         self.runningContainers[containerName].append(containerIPv4)
+        if containerIPv6:
+            self.runningContainers[containerName].append(containerIPv6)
 
     def removeContainer(self, containerName):
         self.runningContainers.pop(containerName, None)
 
-    def lookupAddress(self, query, timeout=None):
+    def __lookup(self, query, timeout=None, type="A"):
+        allowedTypes = ("A", "AAAA")
+        if type not in allowedTypes:
+            raise ValueError
         domain = query.decode()
         if domain in self.runningContainers:
             answers = []
-            for address in self.runningContainers[domain]:
-                p = dns.Record_A(address=address.encode())
-                answer = dns.RRHeader(name=query, payload=p)
-                answers.append(answer)
             authority = []
             additional = []
+            for address in self.runningContainers[domain]:
+                if ((type == "A"
+                        and not isinstance(ip_address(address), IPv4Address))
+                    or (type == "AAAA"
+                        and not isinstance(ip_address(address), IPv6Address))):
+                    continue
+                record = getattr(dns, "Record_%s" % type)
+                p = record(address=address.encode())
+                dnsType = getattr(dns, "%s" % type)
+                answer = dns.RRHeader(name=query, payload=p, type=dnsType)
+                answers.append(answer)
             return defer.succeed((answers, authority, additional))
         else:
+            return None
+
+    def lookupAddress(self, query, timeout=None):
+        response = self.__lookup(query, timeout, "A")
+        if response:
+            return response
+        else:
             return super().lookupAddress(query, timeout)
+
+    def lookupIPV6Address(self, query, timeout=None):
+        response = self.__lookup(query, timeout, "AAAA")
+        if response:
+            return response
+        else:
+            return super().lookupIPV6Address(query, timeout)
 
 
 class EventsListener(Thread):
@@ -74,6 +105,7 @@ class EventsListener(Thread):
 
         for k, v in containerNetworks.items():
             containerIPv4 = v["IPAddress"]
+            containerIPv6 = v["GlobalIPv6Address"]
             shouldAddContainer = True
             # ContainerNetworks contains all the networks. So if we connect a
             # second (or third) network after container started, we fire
@@ -84,8 +116,13 @@ class EventsListener(Thread):
                 if containerIPv4 in thisContainer:
                     shouldAddContainer = False
 
+            if not containerIPv6:
+                containerIPv6 = None
+
             if shouldAddContainer:
-                self.resolver.addContainer(containerName, containerIPv4)
+                self.resolver.addContainer(containerName,
+                                           containerIPv4,
+                                           containerIPv6)
 
     def disconnectCallback(self, event):
         containerID = event["Actor"]["Attributes"]["container"]

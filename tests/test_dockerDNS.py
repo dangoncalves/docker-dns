@@ -8,7 +8,7 @@ from twisted.trial.unittest import TestCase
 from multiprocessing import Process
 from dockerDNS import DockerDNS
 from dnslib.dns import DNSRecord
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import ip_address, ip_network, IPv6Address
 
 CLIENT = docker.from_env()
 
@@ -17,8 +17,11 @@ def resolveDNS(query, server, port, type="A"):
     allowedTypes = ("A", "AAAA")
     if type not in allowedTypes:
         raise ValueError
+    ipv6Server = False
+    if isinstance(ip_address(server), IPv6Address):
+        ipv6Server = True
     q = DNSRecord.question(query, type)
-    answer_paquet = q.send(server, port, tcp=False)
+    answer_paquet = q.send(server, port, tcp=False, ipv6=ipv6Server)
     a = DNSRecord.parse(answer_paquet)
     return [str(a.rr[i].rdata) for i in range(len(a.rr))]
 
@@ -26,16 +29,20 @@ def resolveDNS(query, server, port, type="A"):
 def areAnswersInNetworks(answers, networks_name):
     networks = [CLIENT.networks.list(names=network_name)[0]
                 for network_name in networks_name]
-    subnets = [IPv4Network(network.attrs['IPAM']['Config'][0]['Subnet'])
-               for network in networks]
-    IPs = [IPv4Address(answer) for answer in answers]
+    subnets = []
+    for network in networks:
+        for config in network.attrs['IPAM']['Config']:
+            subnet = config['Subnet']
+            subnets.append(ip_network(subnet))
+
+    IPs = [ip_address(answer) for answer in answers]
     tests = []
     for IP in IPs:
         for subnet in subnets:
             if IP in subnet:
                 tests.append(IP)
 
-    return len(IPs) == len(tests)
+    return len(IPs) == len(tests) and len(IPs) > 0
 
 
 class BaseTest(TestCase):
@@ -43,7 +50,7 @@ class BaseTest(TestCase):
     def __init__(self, *args, **kwargs):
         super(BaseTest, self).__init__(*args, **kwargs)
 
-        self.network = "bridge"
+        self.networks = ["bridge"]
 
         self.sleepTimeStart = 2
         self.sleepTimeDestroy = 2
@@ -83,7 +90,7 @@ class BaseTest(TestCase):
             remove=True,
             detach=True,
             name=self.defaultContainerName,
-            network=self.network
+            network=self.networks[0]
         )
 
     def while_container_is_running(self, networks):
@@ -104,41 +111,40 @@ class BaseTest(TestCase):
         self.when_container_has_gone()
 
     def test_docker_network(self):
-        oldNetwork = self.network
-        self.network = "dockerdns_test"
+        oldNetworks = self.networks
+        self.networks = ["dockerdns_test", "another_dockerdns_test"]
 
-        firstNetworks = self.dockerClient.networks.list(
-            names=["dockerdns_test"])
-        if firstNetworks:
-            firstNetwork = firstNetworks[0]
-        else:
-            firstNetwork = self.dockerClient.networks.create(
-                self.network)
-
-        secondNetworks = self.dockerClient.networks.list(
-            names=["another_dockerdns_test"])
-        if secondNetworks:
-            secondNetwork = secondNetworks[0]
-        else:
-            secondNetwork = self.dockerClient.networks.create(
-                "another_dockerdns_test")
+        i = 0
+        dockerNetworks = []
+        for network in self.networks:
+            subnet = "fc01:122:%s::/64" % i
+            i += 1
+            IPAMPools = [docker.types.IPAMPool(subnet=subnet)]
+            IPAMConfig = docker.types.IPAMConfig(pool_configs=IPAMPools)
+            dockerNetwork = self.dockerClient.networks.list(names=[network])
+            if len(dockerNetwork) >= 1:
+                dockerNetworks.append(dockerNetwork[0])
+            else:
+                dockerNetworks.append(self.dockerClient.networks.create(
+                    network,
+                    enable_ipv6=True,
+                    ipam=IPAMConfig))
 
         self.start_container()
-        secondNetwork.connect(self.defaultContainerName)
+        for dockerNetwork in dockerNetworks[1:]:
+            dockerNetwork.connect(self.defaultContainerName)
         # While we detach the container,
         # we have to wait it has fully started.
         time.sleep(self.sleepTimeStart)
-        self.while_container_is_running([
-            "dockerdns_test",
-            "another_dockerdns_test"])
+        self.while_container_is_running(self.networks)
         # We wait again to ensure the DNS entry
         # was removed after container has stopped.
         time.sleep(self.sleepTimeDestroy)
         self.when_container_has_gone()
 
-        firstNetwork.remove()
-        secondNetwork.remove()
-        self.network = oldNetwork
+        for dockerNetwork in dockerNetworks:
+            dockerNetwork.remove()
+        self.network = oldNetworks
 
 
 class TestDockerDNSIPv4(BaseTest):
@@ -151,7 +157,7 @@ class TestDockerDNSIPv4(BaseTest):
 
     def while_container_is_running(self, networks=None):
         if networks is None:
-            networks = [self.network]
+            networks = self.networks
         dnsAnswer = resolveDNS(self.defaultContainerName,
                                self.listenAddress,
                                self.port)
@@ -161,4 +167,29 @@ class TestDockerDNSIPv4(BaseTest):
         dnsAnswer = resolveDNS(self.defaultContainerName,
                                self.listenAddress,
                                self.port)
+        self.assertTrue(len(dnsAnswer) == 0)
+
+
+class TestDockerDNSIPv6(BaseTest):
+
+    def __init__(self, *args, **kwargs):
+        super(TestDockerDNSIPv6, self).__init__(*args, **kwargs)
+        self.port = 35353
+        self.listenAddress = "::1"
+        self.forwarders = "2001:4860:4860::8888"
+
+    def while_container_is_running(self, networks=None):
+        if networks is None:
+            networks = self.networks
+        dnsAnswer = resolveDNS(self.defaultContainerName,
+                               self.listenAddress,
+                               self.port,
+                               type="AAAA")
+        self.assertTrue(areAnswersInNetworks(dnsAnswer, networks))
+
+    def when_container_has_gone(self):
+        dnsAnswer = resolveDNS(self.defaultContainerName,
+                               self.listenAddress,
+                               self.port,
+                               type="AAAA")
         self.assertTrue(len(dnsAnswer) == 0)

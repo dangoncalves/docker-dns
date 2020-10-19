@@ -6,4 +6,4 @@ __all__ = [
     "DockerDNS"
 ]
 
-__version__ = 0.3
+__version__ = 0.4
