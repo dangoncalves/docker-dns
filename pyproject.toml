@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "docker-dns"
-version = "0.1.0"
+version = "0.5.0"
 description = "A DNS server for docker containers"
 authors = ["Daniel Gonçalves <daniel.gonc@lves.fr>"]
 license = "WTFPL"
