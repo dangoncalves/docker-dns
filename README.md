@@ -1,7 +1,8 @@
 # Docker DNS
 
 Docker DNS is a DNS server that resolve Docker's container name into
-A record to retrieve IPv4 associated.
+A,AAAA or PTR records to retrieve IPv4, IPv6 associated to a container
+name or the container associated to an IP address.
 
 ## Installation configuration and execution
 
@@ -59,7 +60,7 @@ This first version do the job, but there are still some things to do like:
 - [x] add tests
 - [x] add networks support
 - [x] add AAAA queries support
-- [ ] add PTR queries support
+- [x] add PTR queries support
 - [ ] ~~add SRV queries support~~ Not relevant
 - [ ] add HEALTH CHECK support (do not resolve a container that is not healthy)
 - [ ] automate installation

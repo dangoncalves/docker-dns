@@ -14,7 +14,7 @@ CLIENT = docker.from_env()
 
 
 def resolveDNS(query, server, port, type="A"):
-    allowedTypes = ("A", "AAAA")
+    allowedTypes = ("A", "AAAA", "PTR")
     if type not in allowedTypes:
         raise ValueError
     ipv6Server = False
@@ -163,6 +163,15 @@ class TestDockerDNSIPv4(BaseTest):
                                self.port)
         self.assertTrue(areAnswersInNetworks(dnsAnswer, networks))
 
+        for ip in dnsAnswer:
+            reversedIP = ip_address(ip).reverse_pointer
+            reversedAnswer = resolveDNS(reversedIP,
+                                        self.listenAddress,
+                                        self.port,
+                                        "PTR")
+            self.assertTrue(
+                reversedAnswer[0].rstrip(".") == self.defaultContainerName)
+
     def when_container_has_gone(self):
         dnsAnswer = resolveDNS(self.defaultContainerName,
                                self.listenAddress,
@@ -186,6 +195,15 @@ class TestDockerDNSIPv6(BaseTest):
                                self.port,
                                type="AAAA")
         self.assertTrue(areAnswersInNetworks(dnsAnswer, networks))
+
+        for ip in dnsAnswer:
+            reversedIP = ip_address(ip).reverse_pointer
+            reversedAnswer = resolveDNS(reversedIP,
+                                        self.listenAddress,
+                                        self.port,
+                                        "PTR")
+            self.assertTrue(
+                reversedAnswer[0].rstrip(".") == self.defaultContainerName)
 
     def when_container_has_gone(self):
         dnsAnswer = resolveDNS(self.defaultContainerName,

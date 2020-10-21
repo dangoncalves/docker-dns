@@ -76,6 +76,54 @@ class DockerResolver(client.Resolver):
         else:
             return super().lookupIPV6Address(query, timeout)
 
+    def __findContainerByPTRQuery(self, PTRQuery):
+        query = PTRQuery.decode().rstrip(".")
+
+        if query.endswith(".in-addr.arpa"):
+            ip_list = query.rstrip(".in-addr.arpa").split(".")
+            i = 0
+            ipQuery = ""
+            while i < len(ip_list):
+                i += 1
+                ipQuery += ip_list[-i]
+                if i != len(ip_list):
+                    ipQuery += "."
+            ipQuery = ip_address(ipQuery)
+        elif query.endswith(".ip6.arpa"):
+            ip_list = query.rstrip(".ip6.arpa")[::-1].split(".")
+            i = 0
+            ipQuery = ""
+            while i < len(ip_list):
+                ipQuery += ip_list[i]
+                i += 1
+                if i % 4 == 0 and i != len(ip_list):
+                    ipQuery += ":"
+            ipQuery = ip_address(ipQuery)
+        else:
+            return None
+
+        for containerName, IPs in self.runningContainers.items():
+            for ip in IPs:
+                if ipQuery == ip_address(ip):
+                    return containerName
+
+        return None
+
+    def lookupPointer(self, query, timeout=None):
+        answers = []
+        authority = []
+        additional = []
+
+        containerName = self.__findContainerByPTRQuery(query)
+
+        if containerName is None:
+            return super().lookupPointer(query, timeout)
+
+        p = dns.Record_PTR(name=containerName)
+        answer = dns.RRHeader(name=query, payload=p, type=dns.PTR)
+        answers.append(answer)
+        return defer.succeed((answers, authority, additional))
+
 
 class EventsListener(Thread):
     """Listen on start and die events."""
