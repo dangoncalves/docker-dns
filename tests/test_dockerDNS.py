@@ -52,9 +52,11 @@ class BaseTest(TestCase):
 
         self.networks = ["bridge"]
 
-        self.sleepTimeStart = 2
+        self.sleepTimeBootstrap = 2
+        self.sleepTimeBeforeRunning = 0
         self.sleepTimeDestroy = 2
 
+        self.defaultContainerImage = "debian:buster"
         self.defaultContainerCommand = "sleep 3"
         self.defaultContainerName = "test.dockerdns.io"
 
@@ -85,13 +87,16 @@ class BaseTest(TestCase):
 
     def start_container(self):
         self.dockerClient.containers.run(
-            "debian:buster",
+            self.defaultContainerImage,
             self.defaultContainerCommand,
             remove=True,
             detach=True,
             name=self.defaultContainerName,
             network=self.networks[0]
         )
+
+    def while_bootstraping(self):
+        raise NotImplementedError
 
     def while_container_is_running(self, networks):
         raise NotImplementedError
@@ -103,7 +108,12 @@ class BaseTest(TestCase):
         self.start_container()
         # While we detach the container,
         # we have to wait it has fully started.
-        time.sleep(self.sleepTimeStart)
+        time.sleep(self.sleepTimeBootstrap)
+        self.while_bootstraping()
+        # The container is started now but we
+        # may need to wait the healthcheck returns
+        # success
+        time.sleep(self.sleepTimeBeforeRunning)
         self.while_container_is_running()
         # We wait again to ensure the DNS entry
         # was removed after container has stopped.
@@ -135,7 +145,12 @@ class BaseTest(TestCase):
             dockerNetwork.connect(self.defaultContainerName)
         # While we detach the container,
         # we have to wait it has fully started.
-        time.sleep(self.sleepTimeStart)
+        time.sleep(self.sleepTimeBootstrap)
+        self.while_bootstraping()
+        # The container is started now but we
+        # may need to wait the healthcheck returns
+        # success
+        time.sleep(self.sleepTimeBeforeRunning)
         self.while_container_is_running(self.networks)
         # We wait again to ensure the DNS entry
         # was removed after container has stopped.
@@ -147,20 +162,24 @@ class BaseTest(TestCase):
         self.network = oldNetworks
 
 
-class TestDockerDNSIPv4(BaseTest):
+class TestDockerDNSIPv4NoHealthCheck(BaseTest):
 
     def __init__(self, *args, **kwargs):
-        super(TestDockerDNSIPv4, self).__init__(*args, **kwargs)
+        super(TestDockerDNSIPv4NoHealthCheck, self).__init__(*args, **kwargs)
         self.port = 35353
         self.listenAddress = "127.0.0.1"
         self.forwarders = ["8.8.8.8"]
+
+    def while_bootstraping(self):
+        pass
 
     def while_container_is_running(self, networks=None):
         if networks is None:
             networks = self.networks
         dnsAnswer = resolveDNS(self.defaultContainerName,
                                self.listenAddress,
-                               self.port)
+                               self.port,
+                               "A")
         self.assertTrue(areAnswersInNetworks(dnsAnswer, networks))
 
         for ip in dnsAnswer:
@@ -175,17 +194,21 @@ class TestDockerDNSIPv4(BaseTest):
     def when_container_has_gone(self):
         dnsAnswer = resolveDNS(self.defaultContainerName,
                                self.listenAddress,
-                               self.port)
+                               self.port,
+                               "A")
         self.assertTrue(len(dnsAnswer) == 0)
 
 
-class TestDockerDNSIPv6(BaseTest):
+class TestDockerDNSIPv6NoHealthCheck(BaseTest):
 
     def __init__(self, *args, **kwargs):
-        super(TestDockerDNSIPv6, self).__init__(*args, **kwargs)
+        super(TestDockerDNSIPv6NoHealthCheck, self).__init__(*args, **kwargs)
         self.port = 35353
         self.listenAddress = "::1"
         self.forwarders = ["2001:4860:4860::8888"]
+
+    def while_bootstraping(self):
+        pass
 
     def while_container_is_running(self, networks=None):
         if networks is None:
@@ -206,6 +229,40 @@ class TestDockerDNSIPv6(BaseTest):
                 reversedAnswer[0].rstrip(".") == self.defaultContainerName)
 
     def when_container_has_gone(self):
+        dnsAnswer = resolveDNS(self.defaultContainerName,
+                               self.listenAddress,
+                               self.port,
+                               type="AAAA")
+        self.assertTrue(len(dnsAnswer) == 0)
+
+
+class TestDockerDNSIPv4HealthCheck(TestDockerDNSIPv4NoHealthCheck):
+
+    def __init__(self, *args, **kwargs):
+        super(TestDockerDNSIPv4HealthCheck, self).__init__(*args, **kwargs)
+        self.defaultContainerImage = "docker-dns:test-healthcheck-1.0"
+        self.sleepTimeBootstrap = 3
+        self.sleepTimeBeforeRunning = 5
+        self.sleepTimeDestroy = 5
+
+    def while_bootstraping(self):
+        dnsAnswer = resolveDNS(self.defaultContainerName,
+                               self.listenAddress,
+                               self.port,
+                               type="A")
+        self.assertTrue(len(dnsAnswer) == 0)
+
+
+class TestDockerDNSIPv6HealthCheck(TestDockerDNSIPv6NoHealthCheck):
+
+    def __init__(self, *args, **kwargs):
+        super(TestDockerDNSIPv6HealthCheck, self).__init__(*args, **kwargs)
+        self.defaultContainerImage = "docker-dns:test-healthcheck-1.0"
+        self.sleepTimeBootstrap = 3
+        self.sleepTimeBeforeRunning = 5
+        self.sleepTimeDestroy = 5
+
+    def while_bootstraping(self):
         dnsAnswer = resolveDNS(self.defaultContainerName,
                                self.listenAddress,
                                self.port,

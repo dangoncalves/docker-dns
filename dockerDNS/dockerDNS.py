@@ -26,7 +26,15 @@ class DockerResolver(client.Resolver):
                 if not containerIPv6:
                     containerIPv6 = None
 
-                self.addContainer(containerName, containerIPv4, containerIPv6)
+                shouldAddContainer = False
+                if (("Health" in c.attrs["State"] and
+                        c.attrs["State"]["Health"]["Status"] == "healthy") or
+                        "Health" not in c.attrs["State"]):
+                    shouldAddContainer = True
+                if shouldAddContainer:
+                    self.addContainer(containerName,
+                                      containerIPv4,
+                                      containerIPv6)
 
     def addContainer(self, containerName, containerIPv4, containerIPv6=None):
         if containerName not in self.runningContainers:
@@ -134,20 +142,22 @@ class EventsListener(Thread):
 
     def run(self):
         self.eventListener = self.resolver.dockerClient.events(
-                            filters={"event": ["connect", "disconnect"]},
+                            filters={"event": ["connect",
+                                               "disconnect",
+                                               "health_status"]},
                             decode=True)
         for e in self.eventListener:
-            callback = getattr(self, e["Action"] + "Callback")
+            callback_prefix = e["Action"]
+            if "health_status:" in e["Action"]:
+                callback_prefix = e["Action"][:(e["Action"].index(':'))]
+            callback = getattr(self, callback_prefix + "Callback")
             callback(e)
 
     def join(self, timeout=None):
         self.eventListener.close()
         super().join(timeout)
 
-    def connectCallback(self, event):
-        containerID = event["Actor"]["Attributes"]["container"]
-        api = self.resolver.dockerClient.api
-        container = api.inspect_container(containerID)
+    def __add_container(self, container):
         containerName = container["Name"].lstrip('/')
         containerNetworks = container["NetworkSettings"]["Networks"]
 
@@ -172,6 +182,15 @@ class EventsListener(Thread):
                                            containerIPv4,
                                            containerIPv6)
 
+    def connectCallback(self, event):
+        containerID = event["Actor"]["Attributes"]["container"]
+        api = self.resolver.dockerClient.api
+        container = api.inspect_container(containerID)
+
+        if ("Health" not in container["State"] or
+                container["State"]["Health"]["Status"] == "healthy"):
+            self.__add_container(container)
+
     def disconnectCallback(self, event):
         containerID = event["Actor"]["Attributes"]["container"]
         api = self.resolver.dockerClient.api
@@ -181,6 +200,14 @@ class EventsListener(Thread):
             self.resolver.removeContainer(containerName)
         except docker.errors.NotFound:
             pass
+
+    def health_statusCallback(self, event):
+        api = self.resolver.dockerClient.api
+        container = api.inspect_container(event["id"])
+
+        if ("Health" in container["State"] and
+                container["State"]["Health"]["Status"] == "healthy"):
+            self.__add_container(container)
 
 
 class DockerDNS():
