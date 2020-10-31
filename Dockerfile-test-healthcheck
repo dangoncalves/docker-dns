@@ -1,0 +1,16 @@
+FROM nginx:1.19.3
+
+LABEL maintainer="Daniel Gonçalves <daniel.gonc@lves.fr>"
+
+COPY docker-dns-entrypoint.sh /
+
+RUN chmod 755 /docker-dns-entrypoint.sh
+
+ENTRYPOINT ["/docker-dns-entrypoint.sh"]
+
+HEALTHCHECK --interval=3s --timeout=1s \
+  CMD curl -f http://127.0.0.1/ || exit 1
+
+EXPOSE 80
+
+STOPSIGNAL SIGTERM

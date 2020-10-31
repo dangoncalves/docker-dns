@@ -1,4 +1,7 @@
-from .test_dockerDNS import TestDockerDNSIPv4, TestDockerDNSIPv6
+from .test_dockerDNS import TestDockerDNSIPv4NoHealthCheck
+from .test_dockerDNS import TestDockerDNSIPv6NoHealthCheck
+from .test_dockerDNS import TestDockerDNSIPv4HealthCheck
+from .test_dockerDNS import TestDockerDNSIPv6HealthCheck
 
 from twisted.trial import runner, reporter
 import unittest
@@ -6,10 +9,14 @@ import unittest
 
 def suite():
     suite = unittest.TestSuite()
-    suite.addTest(TestDockerDNSIPv4('test_basic_dns_request'))
-    suite.addTest(TestDockerDNSIPv4('test_docker_network'))
-    suite.addTest(TestDockerDNSIPv6('test_basic_dns_request'))
-    suite.addTest(TestDockerDNSIPv6('test_docker_network'))
+    suite.addTest(TestDockerDNSIPv4NoHealthCheck('test_basic_dns_request'))
+    suite.addTest(TestDockerDNSIPv4NoHealthCheck('test_docker_network'))
+    suite.addTest(TestDockerDNSIPv6NoHealthCheck('test_basic_dns_request'))
+    suite.addTest(TestDockerDNSIPv6NoHealthCheck('test_docker_network'))
+    suite.addTest(TestDockerDNSIPv4HealthCheck('test_basic_dns_request'))
+    suite.addTest(TestDockerDNSIPv4HealthCheck('test_docker_network'))
+    suite.addTest(TestDockerDNSIPv6HealthCheck('test_basic_dns_request'))
+    suite.addTest(TestDockerDNSIPv6HealthCheck('test_docker_network'))
     return suite
 
 
