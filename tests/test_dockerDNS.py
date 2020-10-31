@@ -153,7 +153,7 @@ class TestDockerDNSIPv4(BaseTest):
         super(TestDockerDNSIPv4, self).__init__(*args, **kwargs)
         self.port = 35353
         self.listenAddress = "127.0.0.1"
-        self.forwarders = "8.8.8.8"
+        self.forwarders = ["8.8.8.8"]
 
     def while_container_is_running(self, networks=None):
         if networks is None:
@@ -185,7 +185,7 @@ class TestDockerDNSIPv6(BaseTest):
         super(TestDockerDNSIPv6, self).__init__(*args, **kwargs)
         self.port = 35353
         self.listenAddress = "::1"
-        self.forwarders = "2001:4860:4860::8888"
+        self.forwarders = ["2001:4860:4860::8888"]
 
     def while_container_is_running(self, networks=None):
         if networks is None:

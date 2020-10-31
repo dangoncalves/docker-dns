@@ -186,6 +186,9 @@ class EventsListener(Thread):
 class DockerDNS():
     """Start and stop DockerDNS Service"""
     def __init__(self, port=None, listenAddress=None, forwarders=None):
+        if not isinstance(forwarders, list):
+            raise TypeError
+
         self.port = port
         self.listenAddress = listenAddress
         self.forwarders = forwarders
