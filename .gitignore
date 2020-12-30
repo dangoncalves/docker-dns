@@ -1,3 +1,4 @@
 *~
 *.pyc
 *.venv
+_trial_temp/
