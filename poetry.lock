@@ -53,7 +53,7 @@ python-versions = "*"
 
 [[package]]
 name = "dnslib"
-version = "0.9.14"
+version = "0.9.17"
 description = "Simple library to encode/decode DNS wire-format packets"
 category = "dev"
 optional = false
@@ -255,7 +255,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "579adf1809cca17b19271a3ac98797878b65a4eb0c111936345567901b20c9b7"
+content-hash = "49673bcce6d991c1f2282a7358428d3622b30e9d2abdda297d1277182004359d"
 
 [metadata.files]
 attrs = [
@@ -279,7 +279,7 @@ constantly = [
     {file = "constantly-15.1.0.tar.gz", hash = "sha256:586372eb92059873e29eba4f9dec8381541b4d3834660707faf8ba59146dfc35"},
 ]
 dnslib = [
-    {file = "dnslib-0.9.14.tar.gz", hash = "sha256:fbd20a7cd704836923be8e130f0da6c3d840f14ac04590fae420a41d1f1be6fb"},
+    {file = "dnslib-0.9.17.tar.gz", hash = "sha256:74a0ef6758c2a8b14d129fd38eb669879249ffc2ba0115e0e3716a856cb87372"},
 ]
 docker = [
     {file = "docker-4.3.1-py2.py3-none-any.whl", hash = "sha256:13966471e8bc23b36bfb3a6fb4ab75043a5ef1dac86516274777576bed3b9828"},
