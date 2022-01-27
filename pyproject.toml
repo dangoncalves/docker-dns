@@ -11,7 +11,7 @@ Twisted = "^20.3.0"
 docker = "^4.3.1"
 
 [tool.poetry.dev-dependencies]
-dnslib = "^0.9.14"
+dnslib = "^0.9.17"
 flake8 = "^3.8.4"
 
 [build-system]
