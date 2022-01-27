@@ -1,13 +1,13 @@
-from .test_dockerDNS import TestDockerDNSIPv4NoHealthCheck
-from .test_dockerDNS import TestDockerDNSIPv6NoHealthCheck
-from .test_dockerDNS import TestDockerDNSIPv4HealthCheck
-from .test_dockerDNS import TestDockerDNSIPv6HealthCheck
+from .e2e.test_dockerDNS import TestDockerDNSIPv4NoHealthCheck
+from .e2e.test_dockerDNS import TestDockerDNSIPv6NoHealthCheck
+from .e2e.test_dockerDNS import TestDockerDNSIPv4HealthCheck
+from .e2e.test_dockerDNS import TestDockerDNSIPv6HealthCheck
 
 from twisted.trial import runner, reporter
 import unittest
 
 
-def suite():
+def e2e_suite():
     suite = unittest.TestSuite()
     suite.addTest(TestDockerDNSIPv4NoHealthCheck('test_basic_dns_request'))
     suite.addTest(TestDockerDNSIPv4NoHealthCheck('test_docker_network'))
@@ -23,4 +23,4 @@ def suite():
 if __name__ == "__main__":
     reporter = reporter.TreeReporter
     runner = runner.TrialRunner(reporter)
-    runner.run(suite())
+    runner.run(e2e_suite())
