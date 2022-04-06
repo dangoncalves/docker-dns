@@ -7,7 +7,7 @@ license = "WTFPL"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-Twisted = "^20.3.0"
+Twisted = "^22.2.0"
 docker = "^4.3.1"
 
 [tool.poetry.dev-dependencies]
